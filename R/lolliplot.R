@@ -80,6 +80,8 @@
 #' @param host Host to connect to for biomaRt queries (see details).
 #' @param out Character vector specifying the the object to output, one of
 #' "data", "grob", or "plot", defaults to "plot" (see returns).
+#' @param domain Display interpro domain annotations
+#' @param site Display interpro site annotations 
 #' @details lolliplot is a function designed to display mutation information in
 #' the context of a protien identified by an ensembl transcript id. The
 #' lolliplot function will query ensembl via biomart to retrieve sequence and
@@ -135,7 +137,7 @@ lolliplot <- function(x, y=NULL, z=NULL, fillCol=NULL, labelCol=NULL,
                       obsB.adj.lmt=.5, obsB.iter.max=50000,
                       sideChain=FALSE, species="hsapiens",
                       maxLolliStack=NULL, plotLayer=NULL, paletteA=NULL,
-                      paletteB=NULL, host="www.ensembl.org", out="plot")
+                      paletteB=NULL, host="www.ensembl.org", out="plot",domain=domain,site=site)
 {
   # Perform quality check
   input <- lolliplot_qual(x, y, z)
@@ -197,7 +199,7 @@ lolliplot <- function(x, y=NULL, z=NULL, fillCol=NULL, labelCol=NULL,
     # extract protien domain data
     protein_domain <- lolliplot_fetchDomain(transcriptID,
                                             species=species,
-                                            host=host)
+                                            host=host,domain=domain,site=site)
     
     # construct gene from data collected
     geneData <- lolliplot_constructGene(gene, protein_domain, proteinLength)
@@ -242,6 +244,8 @@ lolliplot <- function(x, y=NULL, z=NULL, fillCol=NULL, labelCol=NULL,
   return(output)
 }
 
+##################################################################
+
 #' Convert AA to side chain classification
 #' 
 #' Given the 1 letter code an amino acid, return the side chian classification
@@ -262,6 +266,8 @@ lolliplot_AA2sidechain <- function(x)
   
   return(x)
 }
+
+##################################################################
 
 #' Construct Lolliplot
 #'
@@ -451,6 +457,8 @@ lolliplot_buildMain <- function(gene_data, length, mutation_observed,
   return(p1)
 }
 
+##################################################################
+
 #' Convert Codon to AA
 #' 
 #' Convert a Codon to the appropriate amino acid
@@ -479,6 +487,8 @@ lolliplot_Codon2AA <- function(x)
   
   return(x)
 }
+
+##################################################################
 
 #' Construct gene information
 #' 
@@ -716,6 +726,8 @@ lolliplot_dodgeCoordY <- function(x, track='top')
 #' @param transcriptID String specifying ensembl transcript id
 #' @param species character string to use when searching for ensemblMart dataset
 #' @param host Host to connect to.
+#' @param domain Display domain annotations
+#' @param site Display site annotations
 #' @return data frame of protien domains and start/stop coordinates
 #' @importFrom biomaRt useMart
 #' @importFrom biomaRt listDatasets
@@ -724,14 +736,15 @@ lolliplot_dodgeCoordY <- function(x, track='top')
 #' @noRd
 lolliplot_fetchDomain <- function(transcriptID,
                                   species="hsapiens",
-                                  host="www.ensembl.org")
+                                  host="www.ensembl.org",
+                                  domain=TRUE,site=TRUE)
 {
   # display message
   message("Querying biomaRt for protein domains")
   
   # Load in mart
   ensembl_mart <- biomaRt::useMart("ENSEMBL_MART_ENSEMBL",
-                                   host="www.ensembl.org")
+                                   host=host)
   
   # select proper data set given regexp print warnings if unexpected out occur
   dataset <- biomaRt::listDatasets(ensembl_mart)$dataset
@@ -759,13 +772,24 @@ lolliplot_fetchDomain <- function(transcriptID,
   attributes <- c("interpro_description",
                   "interpro_start",
                   "interpro_end")
-  
+
   # Retrieve data
   result <- biomaRt::getBM(attributes=attributes, filters=filters,
                            values=values, mart=ensembl_mart)
   
-  return(result)
+  if (domain==TRUE){
+    domain<-result[grepl("domain",result$interpro_description),]
+  }
+  if (site==TRUE){
+    site<-result[grepl("site",result$interpro_description),]
+  }
+  
+  result2<-rbind(site,domain)
+  
+  return(result2)
 }
+
+##################################################################
 
 #' format mutation observations
 #'
@@ -915,6 +939,7 @@ lolliplot_mutationObs <- function(x, track, fill_value, label_column,
   
   return(mutation_data)
 }
+##################################################################
 
 #' Check input to lolliplot
 #'
@@ -1011,6 +1036,8 @@ lolliplot_qual <- function(x, y, z)
   return(list(x, y, z))
   }
 
+##################################################################
+
 #' Reduce Lolli
 #' 
 #' Reduce lollis stacked ontop of each other to the amount specified
@@ -1047,6 +1074,9 @@ lolliplot_reduceLolli <- function(x, max=NULL)
   
   return(x)
 }
+
+
+##################################################################
 
 #' fetch protein length
 #' 
@@ -1112,6 +1142,8 @@ lolliplot_transcriptID2codingSeq <- function(transcriptID,
   
   return(as.list(result))
 }
+
+##################################################################
 
 #' Choose output
 #' 
